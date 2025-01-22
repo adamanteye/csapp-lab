@@ -152,7 +152,7 @@ int bitXor(int x, int y) {
  *   Max ops: 4
  *   Rating: 1
  */
-int tmin(void) { return 2; }
+int tmin(void) { return 1 << 32; }
 // 2
 /*
  * isTmax - returns 1 if x is the maximum, two's complement number,
@@ -161,7 +161,13 @@ int tmin(void) { return 2; }
  *   Max ops: 10
  *   Rating: 1
  */
-int isTmax(int x) { return 2; }
+int isTmax(int x) {
+    int b = x + 1;
+    int a = x + 1 + x;
+    a = !~a;
+    b = !b;
+    return a & !b;
+}
 /*
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
  *   where bits are numbered from 0 (least significant) to 31 (most significant)
