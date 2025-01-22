@@ -152,7 +152,7 @@ int bitXor(int x, int y) {
  *   Max ops: 4
  *   Rating: 1
  */
-int tmin(void) { return 1 << 32; }
+int tmin(void) { return 1 << 31; }
 // 2
 /*
  * isTmax - returns 1 if x is the maximum, two's complement number,
@@ -176,7 +176,14 @@ int isTmax(int x) {
  *   Max ops: 12
  *   Rating: 2
  */
-int allOddBits(int x) { return 2; }
+int allOddBits(int x) {
+    int a = 0xAA & x;
+    int b = 0xAA & (x >> 8);
+    int c = 0xAA & (x >> 16);
+    int d = 0xAA & (x >> 24);
+    int e = (a & b & c & d) ^ 0xAA;
+    return !e;
+}
 /*
  * negate - return -x
  *   Example: negate(1) = -1.
@@ -184,7 +191,7 @@ int allOddBits(int x) { return 2; }
  *   Max ops: 5
  *   Rating: 2
  */
-int negate(int x) { return 2; }
+int negate(int x) { return ~x + 1; }
 // 3
 /*
  * isAsciiDigit - return 1 if 0x30 <= x <= 0x39 (ASCII codes for characters '0'
