@@ -141,7 +141,11 @@ NOTES:
  *   Max ops: 14
  *   Rating: 1
  */
-int bitXor(int x, int y) { return 2; }
+int bitXor(int x, int y) {
+    int a = x & ~y;
+    int b = ~x & y;
+    return ~(~a & ~b);
+}
 /*
  * tmin - return minimum two's complement integer
  *   Legal ops: ! ~ & ^ | + << >>
