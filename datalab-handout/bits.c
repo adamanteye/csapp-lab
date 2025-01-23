@@ -201,7 +201,13 @@ int negate(int x) { return ~x + 1; }
  *   Max ops: 15
  *   Rating: 3
  */
-int isAsciiDigit(int x) { return 2; }
+int isAsciiDigit(int x) {
+    int a = !(x & ~0x3f); // le then 0x3f
+    int b = ((x & 0x10) >> 4) &
+            ((x & 0x20) >> 5);       // not le than 0x3f and ge then 0x30
+    int c = !(x & 0x8) | !(x & 0x6); // 0-9
+    return a & b & c;
+}
 /*
  * conditional - same as x ? y : z
  *   Example: conditional(2,4,5) = 4
@@ -210,13 +216,9 @@ int isAsciiDigit(int x) { return 2; }
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-    x = !x;
-    x = x + (x << 1);
-    x = x + (x << 2);
-    x = x + (x << 4);
-    x = x + (x << 8);
-    x = x + (x << 16);
-    return (y & ~x) | (z & x);
+    x = x | (~x + 1);
+    x = x >> 31;
+    return (y & x) | (z & ~x);
 }
 /*
  * isLessOrEqual - if x <= y  then return 1, else return 0
@@ -235,7 +237,10 @@ int isLessOrEqual(int x, int y) { return 2; }
  *   Max ops: 12
  *   Rating: 4
  */
-int logicalNeg(int x) { return 2; }
+int logicalNeg(int x) {
+    int a = x | (~x + 1);
+    return (a >> 31) + 1;
+}
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
  *  Examples: howManyBits(12) = 5
