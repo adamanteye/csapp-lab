@@ -227,7 +227,15 @@ int conditional(int x, int y, int z) {
  *   Max ops: 24
  *   Rating: 3
  */
-int isLessOrEqual(int x, int y) { return 2; }
+int isLessOrEqual(int x, int y) {
+    int a = x >> 31;
+    int b = y >> 31;
+    int c = ~(a ^ b);        // 0xffffffff if x * y >= 0 else 0x0
+    int d = (a & ~b) & 1;    // 0x1 if x < 0 and y >= 0
+    int e = ~x + y + 1;      // y - x, this is subtle to avoid using ~x + 1 + y
+    e = ((e >> 31) ^ 1) & 1; // 0x1 if x <= y else 0x0
+    return (c & e) | (~c & d);
+}
 // 4
 /*
  * logicalNeg - implement the ! operator, using all of
