@@ -261,7 +261,24 @@ int logicalNeg(int x) {
  *  Max ops: 90
  *  Rating: 4
  */
-int howManyBits(int x) { return 0; }
+int howManyBits(int x) {
+    int a = x >> 31;
+    x = ((a & ~x) | ((~a & x))) << 1;
+    x = x | 1;
+    int a16 = (!!(x >> 16)) << 4;
+    x = x >> a16;
+    int a8 = (!!(x >> 8)) << 3;
+    x = x >> a8;
+    int a4 = (!!(x >> 4)) << 2;
+    x = x >> a4;
+    int a2 = (!!(x >> 2)) << 1;
+    x = x >> a2;
+    int a1 = !!(x >> 1);
+    x = x >> a1;
+    int a0 = !!x;
+    int res = a0 + a1 + a2 + a4 + a8 + a16;
+    return res;
+}
 // float
 /*
  * floatScale2 - Return bit-level equivalent of expression 2*f for
